@@ -6,27 +6,40 @@ import tempfile
 import uuid
 
 DENO_SETTINGS = {
-    "importMap", "compilerOptions", "lint", "fmt", "tasks",
-    "nodeModulesDir", "unstable", "vendor", "permissions", "publish",
-    "lock", "typeCheckOnRun", "watch"
+    "importMap",
+    "compilerOptions",
+    "lint",
+    "fmt",
+    "tasks",
+    "nodeModulesDir",
+    "unstable",
+    "vendor",
+    "permissions",
+    "publish",
+    "lock",
+    "typeCheckOnRun",
+    "watch",
 }
+
 
 def log(msg):
     sys.stderr.write(f"[deno-plugin] {msg}\n")
     sys.stderr.flush()
 
+
 def get_deno_config_path():
     json_path = os.path.abspath("deno.json")
     jsonc_path = os.path.abspath("deno.jsonc")
-    
+
     if os.path.exists(jsonc_path) and not os.path.exists(json_path):
         return jsonc_path
     return json_path
 
+
 def read_deno_config(file_path):
     if not os.path.exists(file_path):
         return {}
-    
+
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -37,16 +50,18 @@ def read_deno_config(file_path):
         log(f"Warning: could not read {file_path}: {e}")
         return {}
 
+
 def merge_config(target, source):
     changed = False
-    
+
     for key, value in source.items():
         if key in DENO_SETTINGS:
             if key not in target or target[key] != value:
                 target[key] = value
                 changed = True
-                
+
     return changed
+
 
 def backup_existing_config(file_path):
     if not os.path.exists(file_path):
@@ -58,6 +73,7 @@ def backup_existing_config(file_path):
         log(f"Created backup: {backup_path}")
     except Exception as e:
         log(f"Warning: could not create backup: {e}")
+
 
 def write_deno_config(file_path, config):
     dir_path = os.path.dirname(file_path)
@@ -81,12 +97,12 @@ def write_deno_config(file_path, config):
             pass
         raise
 
+
 def check_installed(request_id):
     return (
-        shutil.which("deno.cmd") is not None or 
-        shutil.which("deno.exe") is not None or 
-        shutil.which("deno") is not None
+        shutil.which("deno.cmd") is not None or shutil.which("deno.exe") is not None or shutil.which("deno") is not None
     )
+
 
 def apply_config(args, context, request_id):
     dry_run = context.get("dryRun", False)
@@ -98,7 +114,7 @@ def apply_config(args, context, request_id):
             "success": False,
             "changed": False,
             "error": "settings must be an object",
-            "data": None
+            "data": None,
         }
 
     try:
@@ -108,12 +124,7 @@ def apply_config(args, context, request_id):
         changed = merge_config(current_config, settings)
 
         if not changed:
-            return {
-                "requestId": request_id,
-                "success": True,
-                "changed": False,
-                "data": None
-            }
+            return {"requestId": request_id, "success": True, "changed": False, "data": None}
 
         if dry_run:
             log(f"Would update {config_path} with: {json.dumps(settings)}")
@@ -121,33 +132,18 @@ def apply_config(args, context, request_id):
                 "requestId": request_id,
                 "success": True,
                 "changed": True,
-                "data": {
-                    "path": config_path,
-                    "settings": settings
-                }
+                "data": {"path": config_path, "settings": settings},
             }
 
         write_deno_config(config_path, current_config)
         log(f"Updated deno config: {config_path}")
 
-        return {
-            "requestId": request_id,
-            "success": True,
-            "changed": True,
-            "data": {
-                "path": config_path
-            }
-        }
+        return {"requestId": request_id, "success": True, "changed": True, "data": {"path": config_path}}
 
     except Exception as e:
         log(f"Failed to apply config: {e}")
-        return {
-            "requestId": request_id,
-            "success": False,
-            "changed": False,
-            "error": str(e),
-            "data": None
-        }
+        return {"requestId": request_id, "success": False, "changed": False, "error": str(e), "data": None}
+
 
 def main():
     input_data = sys.stdin.read()
@@ -158,7 +154,7 @@ def main():
             "success": False,
             "changed": False,
             "error": "No input provided on stdin",
-            "data": None
+            "data": None,
         }
         sys.stdout.write(json.dumps(response) + "\n")
         sys.stdout.flush()
@@ -172,7 +168,7 @@ def main():
             "success": False,
             "changed": False,
             "error": f"Failed to parse JSON request: {str(e)}",
-            "data": None
+            "data": None,
         }
         sys.stdout.write(json.dumps(response) + "\n")
         sys.stdout.flush()
@@ -183,12 +179,7 @@ def main():
     args = request.get("args", {})
     context = request.get("context", {})
 
-    response = {
-        "requestId": request_id,
-        "success": False,
-        "changed": False,
-        "data": None
-    }
+    response = {"requestId": request_id, "success": False, "changed": False, "data": None}
 
     try:
         if command == "check_installed":
@@ -205,6 +196,7 @@ def main():
 
     sys.stdout.write(json.dumps(response) + "\n")
     sys.stdout.flush()
+
 
 if __name__ == "__main__":
     main()
